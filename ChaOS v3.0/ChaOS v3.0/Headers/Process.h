@@ -8,6 +8,7 @@
 #include <vector>
 #include <stack>
 #include "..\Headers\file.h"
+#include "..\Headers\rlutil.h"
 enum State { New, Ready, Waiting, Running, Terminated };
 
 struct Page
@@ -35,7 +36,8 @@ public:
 	int registers[4];
 	static int processesCounter;
 	PCB(std::string fileName, int GID);
-	void SetState(State newState);
+	~PCB();
+	void setStateAndMoveToRespectiveList(State newState);
 	void SetProcesBurstTime(int newBurstTime);
 	int GetProcesBurstTime();
 	int GetPID();
@@ -60,7 +62,7 @@ public:
 	file* currentFile;
 	unsigned short currentDir;
 	std::stack<uShort> returnPath;
-	//Stanislaw: nie rzucam wyjątków, tylko ustawiam flagę, tak jak ustaliliśmy
+	//Stanislaw: nie rzucam wyjatkow, tylko ustawiam flage, tak jak ustalilismy
 	
 	bool zero;
 	int errorCode;

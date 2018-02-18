@@ -3,7 +3,7 @@
 #include <iomanip>
 #include <sstream>
 #include <deque>
-
+extern std::string shellReturnPath;
 extern PCB* ActiveProcess;
 
 enum class CharTable : char
@@ -69,7 +69,7 @@ ChaOS_filesystem::ChaOS_filesystem()
 	// int na char(bitVector)
 	char_int temp2; temp2.INT = (~0);
 
-	// Oznaczamy zajęty sektor 0
+	// Oznaczamy zajety sektor 0
 	setBit(temp2.CHAR[0], 0, 0);
 
 	//Tworzenie i zapis VCB
@@ -86,7 +86,7 @@ ChaOS_filesystem::ChaOS_filesystem()
 	//Tworzenie katalogu ROOT
 	rootDirSector = allocateSector();
 
-	char sector[32] = { 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 'R', 'O', 'O', 'T', '\0', rootDirSector, 1, 0 };
+	char sector[32] = { 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 'r', 'o', 'o', 't', '\0', rootDirSector, 1, 0 };
 	disk.writeSector(rootDirSector, sector);
 
 	currentDirFirst = rootDirSector;
@@ -115,7 +115,7 @@ std::string ChaOS_filesystem::getPath()
 		temp.pop();
 	}
 
-	std::string result = "ROOT";
+	std::string result="";
 	while(!path.empty())
 	{
 		result += '/';
@@ -128,7 +128,21 @@ std::string ChaOS_filesystem::getPath()
 		}
 		path.pop_back();
 	}
+	result += '/';
+	char sector[32];
+	disk.readSector(ActiveProcess->currentDir, sector);
+	for (int j = 0; j < 5; j++)
+	{
+		if (sector[j + 24] != 0) result += sector[j + 24];
+	}
+	shellReturnPath = result;
 	return result;
+}
+
+void ChaOS_filesystem::signalByID(uShort id)
+{
+	if (id < 32)
+		fileSynchronization[id].signal();
 }
 
 c_uShort ChaOS_filesystem::allocateSector()
@@ -143,7 +157,7 @@ c_uShort ChaOS_filesystem::allocateSector()
 	if (freeSectorCount == 0)
 	{
 		//throw outOfMemory();
-		ActiveProcess->errorCode = 2; // Brak wolnych sektorów na dysku.
+		ActiveProcess->errorCode = 2; // Brak wolnych sektorow na dysku.
 		return 0;
 	}
 
@@ -186,7 +200,7 @@ void ChaOS_filesystem::create(const char * f, type t)
 	if (search(name, type::dir) || search(name, type::file))
 	{
 		//throw objectExists();
-		ActiveProcess->errorCode = 3;// Obiekt o podanej nazwie już istnieje.
+		ActiveProcess->errorCode = 3;// Obiekt o podanej nazwie juz istnieje.
 		return;
 	}
 
@@ -215,9 +229,9 @@ void ChaOS_filesystem::create(const char * f, type t)
 					toChar5(f, &sector[24]);
 					sector[29] = row[5]; //pierwszy
 					sector[30] = 1; //rozmiar
-					sector[31] = 0;      //następny
+					sector[31] = 0;      //nastepny
 
-					row[6] = 0; //w liście zawartości nie przechowuje rozmiaru katalogu
+					row[6] = 0; //w liscie zawartosci nie przechowuje rozmiaru katalogu
 				}
 				else
 				{
@@ -225,16 +239,16 @@ void ChaOS_filesystem::create(const char * f, type t)
 				}
 
 				addRow(&dirSector[i], row);
-				disk.writeSector(row[5], sector); //wpisz tablicę do przydzielonego sektora
+				disk.writeSector(row[5], sector); //wpisz tablice do przydzielonego sektora
 				disk.writeSector(currentDirSector, dirSector);
 				fileCreated = true;
 			}
 		}
 
-		//jeśli w danym sektorze nie ma miejsca na wpisy
+		//jesli w danym sektorze nie ma miejsca na wpisy
 		if (!fileCreated)
 		{
-			// jeśli następny sektor nie istnieje
+			// jesli nastepny sektor nie istnieje
 			if (dirSector[31] == 0)
 			{
 				dirSector[31] = allocateSector();
@@ -247,7 +261,7 @@ void ChaOS_filesystem::create(const char * f, type t)
 				disk.writeSector(currentDirFirst, firstSector);
 				//
 
-				//wyzerowanie następnego sektora aktualnego katalogu
+				//wyzerowanie nastepnego sektora aktualnego katalogu
 				char nextSector[32] = { 0 };
 				currentDirSector = dirSector[31];
 				disk.writeSector(currentDirSector, nextSector);
@@ -301,7 +315,7 @@ void ChaOS_filesystem::remove(const char * f)
 	//int currentSectorToFree = search(name, type::file) != 0 ? search(name, type::file) : search(name, type::dir);
 	int currentSectorToFree = file != 0 ? file : dir;
 
-	// Zwalnianie kolejnych sektorów
+	// Zwalnianie kolejnych sektorow
 	char dirSector[32] = {};
 	do {
 		disk.readSector(currentSectorToFree, dirSector);
@@ -313,7 +327,7 @@ void ChaOS_filesystem::remove(const char * f)
 	char row[8] = {};
 	currentDirSector = currentDirFirst = ActiveProcess->currentDir;
 
-	// Przeszukiwanie aktualnego katalogu, by usunąć wpis
+	// Przeszukiwanie aktualnego katalogu, by usunac wpis
 	while (currentDirSector)
 	{
 		disk.readSector(currentDirSector, dirSector);
@@ -371,7 +385,7 @@ std::string ChaOS_filesystem::listDirectory()
 		//<< char(198) << std::string(11, char(205)) << char(216) << std::string(11, char(205)) << char(216) << char(216) << std::string(11, char(205)) << char(216) << std::string(11, char(205)) << char(216) << std::string(11, char(205)) << char(181) << "\n";
 
 
-	// Wypisywanie kolejnych wpisów
+	// Wypisywanie kolejnych wpisow
 	while (currentDirSector)
 	{
 		disk.readSector(currentDirSector, dirSector);
@@ -418,13 +432,15 @@ void ChaOS_filesystem::changeDirectory(const char * name)
 	uShort temp = search(name, type::dir);
 	if (temp)
 	{
-		ActiveProcess->returnPath.push(temp);
-		ActiveProcess->currentDir = temp;
+		ActiveProcess->returnPath.push(ActiveProcess->currentDir);
+		currentDirFirst = ActiveProcess->currentDir = temp;
+
+		//std::cout << "Stos:" << ActiveProcess->returnPath.size() << std::endl;
 	}
 	else
 	{
 		//throw objectNotFound();
-		ActiveProcess->errorCode = 4; // Obiekt o podanej nazwie nie został znaleziony.
+		ActiveProcess->errorCode = 4; // Obiekt o podanej nazwie nie zostal znaleziony.
 		return;
 	}
 }
@@ -437,14 +453,22 @@ void ChaOS_filesystem::backDirectory()
 	}
 	else
 	{
-		ActiveProcess->currentDir = ActiveProcess->returnPath.top();
+		currentDirFirst = currentDirSector = ActiveProcess->currentDir = ActiveProcess->returnPath.top();
 		ActiveProcess->returnPath.pop();
+
+		//std::cout << "Stos:" << ActiveProcess->returnPath.size() << std::endl;
 	}
 
 }
 
 void ChaOS_filesystem::rootDirectory()
 {
+	while (!ShellPath.empty())
+	{
+		ShellPath.pop();
+	}
+	ShellCurrentDir = rootDirSector;
+
 	while (!ActiveProcess->returnPath.empty())
 	{
 		ActiveProcess->returnPath.pop();
@@ -465,7 +489,7 @@ void ChaOS_filesystem::rename(const char * f, const char* newname)
 		return;
 	}
 
-	// czy nowa nazwa nie jest już zajęta
+	// czy nowa nazwa nie jest juz zajeta
 	char newn[5]; toChar5(newname, newn);
 	if (search(newn, type::file) || search(newn, type::dir))
 	{
@@ -648,7 +672,7 @@ std::string ChaOS_filesystem::readFile()
 	}
 	currentFileSector = fileSector[31];
 
-	// Odczyt kolejnych sektorów
+	// Odczyt kolejnych sektorow
 	while (currentFileSector && charsToRead)
 	{
 		disk.readSector(currentFileSector, fileSector);
@@ -683,7 +707,7 @@ void ChaOS_filesystem::appendFile(const std::string& text)
 	char chars = ActiveProcess->currentFile->fileSize = fileSector3[0];
 	auto stringToWrite = text;
 
-	//czy tekst się zmieści
+	//czy tekst sie zmiesci
 	if ((unsigned int(charsToWrite) & 255) + (unsigned int(chars) & 255) > 255)
 	{
 		ActiveProcess->errorCode = 12;
@@ -702,10 +726,10 @@ void ChaOS_filesystem::appendFile(const std::string& text)
 		}
 	}
 
-	//oblicznie przesunięcia
+	//oblicznie przesuniecia
 	unsigned int pozycja = (unsigned int(chars) + 2u + unsigned int(sectors) - 1u);
 
-	//przepisanie do początkowego sektora sektora
+	//przepisanie do poczatkowego sektora sektora
 	pozycja %= 32;
 	for (unsigned int i = pozycja; i < 31 && charsToWrite; i++)
 	{
@@ -713,7 +737,7 @@ void ChaOS_filesystem::appendFile(const std::string& text)
 		stringToWrite.erase(0, 1);
 		charsToWrite--;
 	}
-	//przydział nowego sektora
+	//przydzial nowego sektora
 	if (charsToWrite && fileSector3[31] == 0)
 	{
 		fileSector3[31] = allocateSector();
@@ -731,7 +755,7 @@ void ChaOS_filesystem::appendFile(const std::string& text)
 	///////////////^^^^^^^^^^^^^^^^^^^^^
 
 	char fileSector2[32];
-	// Przepisywanie zawartość pliku do następnego sektora
+	// Przepisywanie zawartosc pliku do nastepnego sektora
 	while (currentFileSector && charsToWrite)
 	{
 
@@ -744,7 +768,7 @@ void ChaOS_filesystem::appendFile(const std::string& text)
 			charsToWrite--;
 		}
 
-		if (charsToWrite > 0 && fileSector2[31] == 0) //przydział nowego sektora
+		if (charsToWrite > 0 && fileSector2[31] == 0) //przydzial nowego sektora
 		{
 			fileSector2[31] = allocateSector();
 			if (fileSector2[31] == 0)
@@ -767,7 +791,7 @@ void ChaOS_filesystem::appendFile(const std::string& text)
 
 	//////////////////////////////////////////////////////////
 
-	// Aktualizacja wpisu w aktualnym katalogu (długość pliku)
+	// Aktualizacja wpisu w aktualnym katalogu (dlugosc pliku)
 	currentDirFirst = ActiveProcess->currentFile->fileDir;
 	currentDirSector = currentDirFirst = ActiveProcess->currentDir;
 
@@ -828,7 +852,7 @@ void ChaOS_filesystem::saveFile(const std::string& text)
 	stringToWrite.insert(stringToWrite.begin(), stringToWrite.size());
 	ActiveProcess->currentFile->fileSizeInSectors = 0;
 
-	// Przepisywanie zawartość pliku do sektora
+	// Przepisywanie zawartosc pliku do sektora
 	while (currentFileSector && charsToWrite)
 	{
 		ActiveProcess->currentFile->fileSizeInSectors++;
@@ -839,12 +863,12 @@ void ChaOS_filesystem::saveFile(const std::string& text)
 			charsToWrite--;
 		}
 
-		if (charsToWrite > 0 && fileSector[31] == 0) //przydział nowego sektora
+		if (charsToWrite > 0 && fileSector[31] == 0) //przydzial nowego sektora
 		{
 			fileSector[31] = allocateSector();
 		}
 
-		if (!charsToWrite && fileSector[31]) //zwalnianie niepotrzebnych sektorów
+		if (!charsToWrite && fileSector[31]) //zwalnianie niepotrzebnych sektorow
 		{
 			char sector[32];
 			char currentSectorToFree = fileSector[31];
@@ -873,7 +897,7 @@ void ChaOS_filesystem::saveFile(const std::string& text)
 	currentFileSector = currentFileFirst;
 	//////////////////////////////////////////////////////////
 
-	// Aktualizacja wpisu w aktualnym katalogu (długość pliku)
+	// Aktualizacja wpisu w aktualnym katalogu (dlugosc pliku)
 	currentDirFirst = ActiveProcess->currentFile->fileDir;
 	currentDirSector = currentDirFirst = ActiveProcess->currentDir;
 
@@ -909,7 +933,6 @@ void ChaOS_filesystem::closeFile()
 	{
 		if (ActiveProcess->currentFile)
 		{
-			//std::cout << "FS LOG: CLOSE: file: " << ActiveProcess->currentFile->firstSector << std::endl;
 			fileSynchronization[ActiveProcess->currentFile->firstSector].signal();
 			delete ActiveProcess->currentFile;
 		}
@@ -919,7 +942,7 @@ void ChaOS_filesystem::closeFile()
 
 
 // do kontroli dysku 
-// Zwraca string opisujący zadany sektor
+// Zwraca string opisujacy zadany sektor
 std::string  ChaOS_filesystem::printSector(const unsigned short number)
 {
 	if (number >= disk.numberOfSectors)
@@ -952,7 +975,7 @@ std::string  ChaOS_filesystem::printSector(const unsigned short number)
 	return result.str();
 }
 
-// Zwraca string opisujący łańcuch sektorów zaczynając od 'first'
+// Zwraca string opisujacy lancuch sektorow zaczynajac od 'first'
 std::string ChaOS_filesystem::printSectorsChain(const unsigned short first)
 {
 	std::string result;
@@ -991,7 +1014,7 @@ std::string ChaOS_filesystem::printSectorsChain(const unsigned short first)
 	return result;
 }
 
-// Zwraca string opisujący stan dysku
+// Zwraca string opisujacy stan dysku
 std::string ChaOS_filesystem::printDiskStats()
 {
 	std::ostringstream result;
@@ -1030,7 +1053,7 @@ void ChaOS_filesystem::addRow(char * sector, char* row)
 	}
 }
 
-// Pobiera wiersz z określonego miejsca w sektorze
+// Pobiera wiersz z okreslonego miejsca w sektorze
 void ChaOS_filesystem::getRow(char * sector, char* row)
 {
 	for (int i = 0; i < 8; i++)
@@ -1039,7 +1062,7 @@ void ChaOS_filesystem::getRow(char * sector, char* row)
 	}
 }
 
-// Porównuje dwie nazwy zapisane w char[5]
+// Porownuje dwie nazwy zapisane w char[5]
 bool ChaOS_filesystem::equalName(const char * n1, const char * n2)
 {
 	for (int i = 0; i < 5; i++)
@@ -1049,7 +1072,7 @@ bool ChaOS_filesystem::equalName(const char * n1, const char * n2)
 	return true;
 }
 
-// Określa długość tablicy char*
+// Okresla dlugosc tablicy char*
 uShort ChaOS_filesystem::charArrSize(const char * arr)
 {
 	uShort result = 0;
@@ -1060,7 +1083,7 @@ uShort ChaOS_filesystem::charArrSize(const char * arr)
 	return result;
 }
 
-// Przycina(/rozszerza) zawartość char* tak by zmieściła się w char[5]
+// Przycina(/rozszerza) zawartosc char* tak by zmiescila sie w char[5]
 void ChaOS_filesystem::toChar5(const char * arr, char* result5)
 {
 	for (int i = 0; i < 5; i++)
@@ -1074,7 +1097,7 @@ void ChaOS_filesystem::toChar5(const char * arr, char* result5)
 	}
 }
 
-//Przedstawia int w postaci wektora bitów (zapisane w string)
+//Przedstawia int w postaci wektora bitow (zapisane w string)
 std::string ChaOS_filesystem::asBitVector(const int vector)
 {
 	std::string result = "{0}";
@@ -1087,7 +1110,7 @@ std::string ChaOS_filesystem::asBitVector(const int vector)
 	return result += "{31}";
 }
 
-//zastępuje znaki formatujące przez '.'
+//zastepuje znaki formatujace przez '.'
 char ChaOS_filesystem::check(const char& c)
 {
 	if (c == 7 || c == 8 || c == 9 || c == 10 || c == 13) return '.';
@@ -1129,7 +1152,7 @@ void ChaOS_filesystem::clearDisk()
 		0,0,0,0, 0,0,0,0 };
 	disk.writeSector(0, VCB);
 	rootDirSector = allocateSector();
-	char sector[32] = { 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 'R', 'O', 'O', 'T', '\0', rootDirSector, 1, 0 };
+	char sector[32] = { 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 'r', 'o', 'o', 't', '\0', rootDirSector, 1, 0 };
 	disk.writeSector(rootDirSector, sector);
 	currentDirFirst = rootDirSector;
 	currentDirSector = rootDirSector;

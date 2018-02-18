@@ -14,17 +14,17 @@ public:
 	std::list<PCB*>waitingProcesses{};
 	std::list<PCB*>list{};
 	std::list<PCB*>readyProcesses{};
-	ProcessesManager(); //Poprawi³em bo by³o {}; i przez to by³ problem ¿e konstruktor jest ju¿ zdefiniowany - Bartek
+	ProcessesManager(); 
 	void createProcess(std::string fileName, int GID);
+	void createProcess(std::string fileName, int GID, int AddidtionalSpace);
+
 	void killProcess(int PID);
 	void displayAllProcesses();
 	void displayWaitingProcesses();
 	void displayReadyProcesses();
 	PCB * findPCBbyPID(int PID);
-	// Albert -- napisalem se funkcje do zwracania std::list<Process*>readyProcesses;
 	std::list<PCB*> GiveReadyProcessesList();
 	std::list<PCB*> GiveWaitingProcessesList();
-	//Konrad: potrzebowa³em tego heh
 	std::list<std::list<PCB*>> getAllProcesseslist();
 	void AddProcessToReady(PCB*);
 	void RemoveProcessFromReady(PCB*);
